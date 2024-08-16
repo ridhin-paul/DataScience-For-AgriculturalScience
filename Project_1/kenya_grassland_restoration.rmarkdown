@@ -1,0 +1,371 @@
+---
+title: "Evaluating Short-Term Restoration Approaches for Degraded Grasslands in Kenya"
+author: Ridhin Paul
+format: 
+  html:
+    embed-resources: true
+editor: visual
+---
+
+
+## Summary
+
+This project evaluates the short-term effectiveness of restoration methods for degraded grasslands in Kenya. The treatments include **Tilage (T)**, the addition of native **soil inoculum (S)** and **Manure (M)**. "*A grazing exclosure was installed at the campus of the Kabianga University in Kenya in April 2022, when restoration treatments were laid out and baseline soil samples taken and analysed for key soil physical, chemical and biological properties. In November 2022, fresh soil samples were taken to track short- term changes in the soil. In addition, we assessed the plant community species composition, and measured in situ soil respiration rates.*" Refer "Grassland restoration experiment Kabianga Kenya.pdf" for more info.
+
+## Loading required packages
+
+
+```{r}
+#| eval: true
+#| warning: false
+
+library(tidyverse)
+library(readxl)
+library(GGally)
+library(VIM)
+library(FactoMineR)
+```
+
+
+## Loading all datasets
+
+Some unwanted columns have also been removed.
+
+
+```{r}
+#| eval: true
+#| warning: false
+
+#Kabianga
+kab.nov.22 <- read_excel("data/DSAS_REDEAL_Assign_Data_Aug2.xlsx" , sheet = 'Kab_nov_2022', na = c("NA", NA)) |>
+  select(-c(...21,...22))
+kab.dec.23 <- read_excel("data/DSAS_REDEAL_Assign_Data_Aug2.xlsx" , sheet = 'Kab_dec_2023', na = c("NA", NA)) 
+
+#Thurgem
+thur.jun.22 <- read_excel("data/DSAS_REDEAL_Assign_Data_Aug2.xlsx" , sheet = 'Thur_june_2022', na = c("NA", NA)) |>
+  select(-c(...13,...14))
+
+thur.july.23 <- read_excel("data/DSAS_REDEAL_Assign_Data_Aug2.xlsx" , sheet = 'Thur_july_2023', na = c("NA", NA)) |>
+  select(-c(...15,...16))
+
+thur.dec.23 <- read_excel("data/DSAS_REDEAL_Assign_Data_Aug2.xlsx" , sheet = 'Thur_dec_2023', na = c("NA", NA))
+
+#Kapsarok
+kaps.jun.22 <- read_excel("data/DSAS_REDEAL_Assign_Data_Aug2.xlsx" , sheet = 'Kaps_june_2022', na = c("NA", NA)) |>
+  select(-c(...13,...14)) 
+```
+
+
+## Data exploration
+
+#### Missing value check
+
+
+```{r}
+#| eval: true
+#| warning: false
+
+aggr(kab.nov.22, prop = F, numbers = T) 
+aggr(kab.dec.23, prop = F, numbers = T)
+aggr(thur.jun.22, prop = F, numbers = T)
+aggr(thur.july.23, prop = F, numbers = T)
+aggr(thur.dec.23, prop = F, numbers = T)
+aggr(kaps.jun.22, prop = F, numbers = T)
+
+```
+
+
+For the dataset `kab.nov.23` the plot indicate the last row has all NA entries which is removed. And for the dataset `kaps.jun.22` there are 2 NA entries in the YIELD column, here the average based on the type of treatment for which the value is missing is taken and replaced. Since there are only 2 NA values, code is not written for the entire column.
+
+
+```{r}
+#| eval: true
+#| warning: false
+
+kab.nov.22 <- kab.nov.22|>
+  na.omit()
+
+mean_yield_1 <- kaps.jun.22 |>
+  filter(Code == "S") |>
+  pull(YIELD) |>
+  mean(na.rm = TRUE)
+
+mean_yield_2 <- kaps.jun.22 |>
+  filter(Code == "ST") |>
+  pull(YIELD) |>
+  mean(na.rm = TRUE)
+
+kaps.jun.22 <- kaps.jun.22 |>
+  mutate(YIELD = if_else(Code == "S" & is.na(YIELD), mean_yield_1, YIELD),
+         YIELD = if_else(Code == "ST" & is.na(YIELD), mean_yield_2, YIELD)) 
+```
+
+
+#### Checking data types
+
+For the variables `Plot No.`, `YIELD`, `DM`, `SPE`, `Tsoil`, `Tair`, `MOIS`, `RES`, `pH`, `EC`, `MBC`, `MBN`, `Nconc`, `Cconc`, `P`, `BD`, `NH4`, `NO3`, `Block` and for each treatment (later converted to factor type) `M`, `S` and `T` numeric values are expected as entry.
+
+
+```{r}
+#| eval: true
+#| warning: false
+
+glimpse(kab.nov.22)
+glimpse(kab.dec.23)
+glimpse(thur.jun.22)
+glimpse(thur.july.23)
+glimpse(thur.dec.23)
+glimpse(kaps.jun.22)
+
+```
+
+
+All results where as expected.
+
+#### **Check for multicolinearity**
+
+1.  Kabianga November 2023
+
+
+```{r}
+#| eval: true
+#| warning: false
+#| fig-width: 12
+#| fig-height: 10
+
+kab.nov.22 |>
+  select(-`Plot No.`, - Treatment, -M, -S, -T) |> 
+  ggpairs()
+```
+
+
+2.  Kabianga December 2023
+
+
+```{r}
+#| eval: true
+#| warning: false
+#| fig-width: 12
+#| fig-height: 10
+
+
+kab.dec.23 |>
+  select(-`Plot No.`, - Treatment, -M, -S, -T) |> 
+  ggpairs()
+```
+
+
+3.  Thurgem June 2022
+
+
+```{r}
+#| eval: true
+#| warning: false
+#| fig-width: 12
+#| fig-height: 10
+
+thur.jun.22 |>
+  select(-`Plot No.`, - Treatment, -M, -S, -T) |> 
+  ggpairs()
+```
+
+
+4.  Thurgem July 2023
+
+
+```{r}
+#| eval: true
+#| warning: false
+#| fig-width: 12
+#| fig-height: 10
+
+thur.july.23 |>
+  select(-Plot_No, - Treatment, -M, -S, -T) |> 
+  ggpairs()
+```
+
+
+5.  Thurgem Dec 2023
+
+
+```{r}
+#| eval: true
+#| warning: false
+#| fig-width: 12
+#| fig-height: 10
+
+thur.dec.23 |>
+  select(- `Plot No.`, - Treatment, -M, -S, -T) |> 
+  ggpairs()
+```
+
+
+6.  Kapsorok June 2022
+
+
+```{r}
+#| eval: true
+#| warning: false
+#| fig-width: 12
+#| fig-height: 10
+
+kaps.jun.22 |>
+  select(-Plot_No., - Treatment, -M, -S, -T) |> 
+  ggpairs()
+```
+
+
+#### **Histogram of YIELD by Treatment faceted by Block**
+
+1.  Kabianga November 2023
+
+
+```{r}
+#| eval: true
+#| warning: false
+
+ggplot(kab.nov.23, aes(x = Code, y = YIELD)) +
+  geom_bar(color = "black", alpha = 0.7, stat = "identity") +
+  labs(title = "Histogram of YIELD by Treaetment faceted by Block (Kabianga Nov 2023)", x = "Treatment", y = "Yield") +
+    facet_wrap(~Block) +
+  theme_minimal() 
+
+```
+
+
+2.  Kabianga December 2023
+
+
+```{r}
+#| eval: true
+#| warning: false
+
+ggplot(thur.jun.22, aes(x = Code, y = YIELD)) +
+  geom_bar(color = "black", alpha = 0.7, stat = "identity") +
+  labs(title = "Histogram of YIELD by Treaetment faceted by Block (Kabianga Dec 2023)", x = "Treatment", y = "Yield") +
+    facet_wrap(~Block) +
+  theme_minimal() 
+```
+
+
+3.  Thurgem June 2022
+
+
+```{r}
+#| eval: true
+#| warning: false
+
+ggplot(kab.dec.23, aes(x = Code, y = YIELD)) +
+  geom_bar(color = "black", alpha = 0.7, stat = "identity") +
+  labs(title = "Histogram of YIELD by Treaetment faceted by Block (Thurgem June 2022)", x = "Treatment", y = "Yield") +
+    facet_wrap(~Block) +
+  theme_minimal() 
+```
+
+
+4.  Thurgem July 2023
+
+
+```{r}
+#| eval: true
+#| warning: false
+
+ggplot(thur.july.23, aes(x = Code, y = YIELD)) +
+  geom_bar(color = "black", alpha = 0.7, stat = "identity") +
+  labs(title = "Histogram of YIELD by Treaetment faceted by Block (Thurgem July 2023)", x = "Treatment", y = "Yield") +
+    facet_wrap(~Block) +
+  theme_minimal() 
+```
+
+
+5.  Thurgem Dec 2023
+
+
+```{r}
+#| eval: true
+#| warning: false
+
+ggplot(thur.dec.23, aes(x = Code, y = YIELD)) +
+  geom_bar(color = "black", alpha = 0.7, stat = "identity") +
+  labs(title = "Histogram of YIELD by Treaetment faceted by Block (Thurgem Dec 2023)", x = "Treatment", y = "Yield") +
+    facet_wrap(~Block) +
+  theme_minimal() 
+```
+
+
+6.  Kapsorok June 2022
+
+
+```{r}
+#| eval: true
+#| warning: false
+
+ggplot(kaps.jun.22, aes(x = Code, y = YIELD)) +
+  geom_bar(color = "black", alpha = 0.7, stat = "identity") +
+  labs(title = "Histogram of YIELD by Treaetment faceted by Block (Kapsorok June 2023)", x = "Treatment", y = "Yield") +
+    facet_wrap(~Block) +
+  theme_minimal() 
+```
+
+```{r}
+model <- aov(YIELD ~ Block + T * S * M , data = kab.nov.22)
+summary(model)
+```
+
+
+## Primary analysis
+
+
+```{r}
+model <- aov(MBC ~ Block + T * S * M , data = kab.nov.22)
+summary(model)
+```
+
+```{r}
+
+kab.nov.22 |>
+  summarise(mean(YIELD), .by = Code)
+
+kab.dec.23 |>
+  summarise(mean(YIELD), .by = Code)
+
+
+```
+
+```{r}
+thur.jun.22 |>
+  summarise(mean(YIELD), .by = Code)
+
+thur.july.23 |>
+  summarise(mean(YIELD), .by = Code)
+
+thur.dec.23 |>
+  summarise(mean(YIELD), .by = Code)
+```
+
+```{r}
+kaps.jun.22 |>
+  summarise(mean(YIELD), .by = Code)
+```
+
+```{r}
+shapiro.test(thur.dec.23$YIELD)
+```
+
+```{r}
+summary(lm(MBC ~ M*S*T  , data = kab.nov.22))
+```
+
+```{r}
+summary(lmer(MBC ~ M*S*T + (1|Block)  , data = kab.nov.22))
+```
+
+
+## Secondary analysis
+
+
+```{r}
+kab.nov.22 |>
+  select(-Treatment, - `Plot No.`, -M, -S, -T)
+```
+
