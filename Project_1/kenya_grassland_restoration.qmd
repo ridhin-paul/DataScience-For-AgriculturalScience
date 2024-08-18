@@ -274,83 +274,59 @@ ggplot(kaps.jun.22, aes(x = Code, y = YIELD)) +
   theme_minimal() 
 ```
 
-```{r}
-model <- aov(YIELD ~ Block + T * S * M , data = kab.nov.22)
-summary(model)
-```
-
 ## Primary analysis
 
 ```{r}
-model <- aov(MBC ~ Block + T * S * M , data = kab.nov.22)
-summary(model)
+summary(aov(YIELD ~ Block + T * S * M , data = kab.nov.22))
+summary(aov(YIELD ~ Block + T * S * M , data = kab.dec.23))
+summary(aov(YIELD ~ Block + T * S * M , data = thur.jun.22))
+summary(aov(YIELD ~ Block + T * S * M , data = thur.july.23))
+summary(aov(YIELD ~ Block + T * S * M , data = thur.dec.23))
+summary(aov(YIELD ~ Block + T * S * M , data = kaps.jun.22))
+
+#MBC and MBN
+summary(aov(MBC ~ Block + T * S * M , data = kab.nov.22))
+summary(aov(MBN ~ Block + T * S * M , data = kab.nov.22))
+```
+
+```{At significance level 10%.}
+For kab.nov.22  T is significant.
+For kab.dec.23 T:S  is significant.
+
+
+For MBC Block, T, M had significant effect.
+For MBN Block and M were. found significant.
+
+
+
+
+
+For thur.jun.22 no treatment or combinations had a significant effect.
+For thur.july.23 T:S is significant.
+For thur.dec.23 no treatment or combinations had a significant effect.
+
+For kaps.jun.22 Block, T, S, T:S, T:M and T:S:M had  significance.
 ```
 
 ```{r}
+summary(lm(YIELD ~ T * S * M , data = kab.nov.22))
+summary(lm(YIELD ~ T * S * M , data = kab.dec.23))
+summary(lm(YIELD ~ T * S * M , data = thur.jun.22))
+summary(lm(YIELD ~ T * S * M , data = thur.july.23))
+summary(lm(YIELD ~ T * S * M , data = thur.dec.23))
+summary(lmer(YIELD ~ T * S * M + (1|Block), data = kaps.jun.22))
 
-x <- kab.nov.22 |>
-  summarise(mean(MBN), .by = Code) 
-  ggplot(x) +
-  geom_bar(aes(x= Code, y = `mean(MBN)`), stat = "identity") +
-    labs (x="Treatment", y = "Mean yield", title = "Mean yield per treatment", caption = "Sample chart of dataset Kabianga Novemeber 2022") + 
-    theme_minimal()
-
-kab.dec.23 |>
-  summarise(mean(YIELD), .by = Code)
-
-
+#MBC and MBN
+summary(lmer(MBC ~ T * S * M + (1|Block), data = kab.nov.22))
+summary(lmer(MBN ~ T * S * M + (1|Block) , data = kab.nov.22))
 ```
 
 ```{r}
-thur.jun.22 |>
-  summarise(mean(YIELD), .by = Code)
+summary(lm(YIELD ~ T * S * M + Block, data = kaps.jun.22))
 
-thur.july.23 |>
-  summarise(mean(YIELD), .by = Code)
-
-thur.dec.23 |>
-  summarise(mean(YIELD), .by = Code)
-```
-
-```{r}
-kaps.jun.22 |>
-  summarise(mean(YIELD), .by = Code)
-```
-
-```{r}
-shapiro.test(thur.dec.23$YIELD)
-```
-
-```{r}
-summary(lm(YIELD ~ M*S*T +Block , data = thur.jun.22))
-```
-
-```{r}
-summary(lm(MBC ~ M*S*T  , data = kab.nov.22))
-
+#MBC and MBN
+summary(lm(MBC ~ T * S * M + Block, data = kab.nov.22))
+summary(lm(MBN ~ T * S * M + Block, data = kab.nov.22))
 ```
 
 ## Secondary analysis
-
-```{r}
-t <- kab.nov.22 |>
-  dplyr::select(-`Plot No.`, -M,-S,-T, -Treatment, -Block)
-c <- FAMD(t)
-
-fviz_screeplot(c, addlabels = TRUE)
-
-```
-
-```{r}
-model <- aov(YIELD ~ T * S * M , data = kab.nov.22)
-
-
-shapiro.test(kaps.jun.22$YIELD)
-
-t.test(kab.nov.22$YIELD, kab.dec.23$YIELD)
-```
-
-```{r}
-pairwise.t.test(kab.nov.22$YIELD, kab.dec.23$YIELD, paired = TRUE)
-
-```
