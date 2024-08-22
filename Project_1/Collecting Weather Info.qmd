@@ -18,7 +18,7 @@ library(tidyverse)
 
 ## **Note**
 
-It is not expected to run this code unless any changes in data or more data is required, data necessary for the analysis have been collected, formatted and written into csv file under the folder name Weather data. All downloaded data has been ignored because of size constraints; if any raw data is required the specific code can be run and data be downloaded locally.
+It is not expected to run this code unless any changes in data or more data is required, data necessary for the analysis have been collected, formatted and written into csv file under the folder name Weather data. All downloaded data has been ignored because of size constraints; if any raw data is required the specific code along with required request body can be run and data be downloaded locally.
 
 ## Defining location
 
@@ -132,7 +132,7 @@ get_data <- function(files, loc, var)
 Need to design and make a single wrapper with varying request body.
 
 ```{r}
-#|eval: true
+#|eval: false
 
 # Setting up user credentials and url
 cds_api_url <- "https://cds.climate.copernicus.eu/api/v2"
@@ -248,25 +248,25 @@ for (i in 1:nrow(coord))
     
     if (loc$location == "Kabianga")
     {
-      wi_kab_nov_22_sr <- get_data(files_nov_22, loc, var) |>
+      wi_kab_nov_22_srf <- get_data(files_nov_22, loc, var) |>
         rename(solar_radiation_flux = Value,SRFunit = Unit)
-      wi_kab_dec_23_sr <- get_data(files_dec_23, loc, var) |>
+      wi_kab_dec_23_srf <- get_data(files_dec_23, loc, var) |>
         rename(solar_radiation_flux = Value,SRFunit = Unit)
     }
     
     else if(loc$location == "Thurgem")
     {
-      wi_thur_jun_22_sr <- get_data(files_june_22, loc, var) |>
+      wi_thur_jun_22_srf <- get_data(files_june_22, loc, var) |>
         rename(solar_radiation_flux = Value,SRFunit = Unit)
-      wi_thur_jul_23_sr <- get_data(files_jul_23, loc, var) |>
+      wi_thur_jul_23_srf <- get_data(files_jul_23, loc, var) |>
         rename(solar_radiation_flux = Value,SRFunit = Unit)
-      wi_thur_dec_23_sr <- get_data(files_dec_23, loc, var) |>
+      wi_thur_dec_23_srf <- get_data(files_dec_23, loc, var) |>
         rename(solar_radiation_flux = Value,SRFunit = Unit)
     }
     
     else if(loc$location == "Kapsorok")
     {
-      wi_kaps_jun_22_sr <- get_data(files_dec_23, loc, var) |>
+      wi_kaps_jun_22_srf <- get_data(files_dec_23, loc, var) |>
         rename(solar_radiation_flux = Value,SRFunit = Unit)
     }
 }
@@ -276,10 +276,10 @@ for (i in 1:nrow(coord))
 
 ### Liquid precipitation duration fraction and precipitation flux
 
-Just change the request body and change folder name required
+Just change the request body (variable name) and change folder name required
 
 ```{r}
-#|eval: true
+#|eval: false
 
 # Setting up user credentials and url
 cds_api_url <- "https://cds.climate.copernicus.eu/api/v2"
@@ -396,20 +396,22 @@ files_jul_23 <- sort_file_based_on_dates(7, 2023, files)
 
 for (i in 1:nrow(coord))
 {
-  loc <- coord[i, ] if (loc$location == "Kabianga") {
-    wi_kab_nov_22_pf <- get_data(files_nov_22, loc, var) |>
-      rename(Precipitation_Flux = Value, PFUnit = Unit)
-    wi_kab_dec_23_pf <- get_data(files_dec_23, loc, var) |>
-      rename(Precipitation_Flux = Value, PFUnit = Unit)
-  }
+  loc <- coord[i, ] 
+  if (loc$location == "Kabianga") 
+    {
+      wi_kab_nov_22_pf <- get_data(files_nov_22, loc, var) |>
+        rename(Precipitation_Flux = Value, PFUnit = Unit)
+      wi_kab_dec_23_pf <- get_data(files_dec_23, loc, var) |>
+        rename(Precipitation_Flux = Value, PFUnit = Unit)
+    }
   else if (loc$location == "Thurgem")
   {
-    wi_thur_jun_22_pf <- get_data(files_june_22, loc, var) |>
-      rename(Precipitation_Flux = Value, PFUnit = Unit)
-    wi_thur_jul_23_pf <- get_data(files_jul_23, loc, var) |>
-      rename(Precipitation_Flux = Value, PFUnit = Unit)
-    wi_thur_dec_23_pf <- get_data(files_dec_23, loc, var) |>
-      rename(Precipitation_Flux = Value, PFUnit = Unit)
+      wi_thur_jun_22_pf <- get_data(files_june_22, loc, var) |>
+        rename(Precipitation_Flux = Value, PFUnit = Unit)
+      wi_thur_jul_23_pf <- get_data(files_jul_23, loc, var) |>
+        rename(Precipitation_Flux = Value, PFUnit = Unit)
+      wi_thur_dec_23_pf <- get_data(files_dec_23, loc, var) |>
+        rename(Precipitation_Flux = Value, PFUnit = Unit)
   } 
   else if (loc$location == "Kapsorok")
     {
@@ -422,6 +424,7 @@ for (i in 1:nrow(coord))
 ### **Precipitation duration fraction**
 
 ```{r}
+
 files <- list.files(path = "data/liquid_precipitation_duration_fraction//",
                     pattern = "\\.nc$",
                     full.names = TRUE)
@@ -436,30 +439,30 @@ for (i in 1:nrow(coord))
   loc <- coord[i, ]
   if (loc$location == "Kabianga")
   {
-    wi_kab_nov_22_prdf <- get_data(files_nov_22, loc, var) |>
-      rename(Precipitation_Rain_Duration_Fraction = Value,
-             PRDFUnit = Unit)
-    wi_kab_dec_23_prdf <- get_data(files_dec_23, loc, var) |>
-      rename(Precipitation_Rain_Duration_Fraction = Value,
-             PRDFUnit = Unit)
+      wi_kab_nov_22_prdf <- get_data(files_nov_22, loc, var) |>
+        rename(Precipitation_Rain_Duration_Fraction = Value,
+               PRDFUnit = Unit)
+      wi_kab_dec_23_prdf <- get_data(files_dec_23, loc, var) |>
+        rename(Precipitation_Rain_Duration_Fraction = Value,
+               PRDFUnit = Unit)
   }
   else if (loc$location == "Thurgem")
   {
-    wi_thur_jun_22_prdf <- get_data(files_june_22, loc, var) |>
-      rename(Precipitation_Rain_Duration_Fraction = Value,
-             PRDFUnit = Unit)
-    wi_thur_jul_23_prdf <- get_data(files_jul_23, loc, var) |>
-      rename(Precipitation_Rain_Duration_Fraction = Value,
-             PRDFUnit = Unit)
-    wi_thur_dec_23_prdf <- get_data(files_dec_23, loc, var) |>
-      rename(Precipitation_Rain_Duration_Fraction = Value,
-             PRDFUnit = Unit)
+      wi_thur_jun_22_prdf <- get_data(files_june_22, loc, var) |>
+        rename(Precipitation_Rain_Duration_Fraction = Value,
+               PRDFUnit = Unit)
+      wi_thur_jul_23_prdf <- get_data(files_jul_23, loc, var) |>
+        rename(Precipitation_Rain_Duration_Fraction = Value,
+               PRDFUnit = Unit)
+      wi_thur_dec_23_prdf <- get_data(files_dec_23, loc, var) |>
+        rename(Precipitation_Rain_Duration_Fraction = Value,
+               PRDFUnit = Unit)
   }
   else if (loc$location == "Kapsorok")
   {
-    wi_kaps_jun_22_prdf <- get_data(files_dec_23, loc, var) |>
-      rename(Precipitation_Rain_Duration_Fraction = Value,
-             PRDFUnit = Unit)
+      wi_kaps_jun_22_prdf <- get_data(files_dec_23, loc, var) |>
+        rename(Precipitation_Rain_Duration_Fraction = Value,
+               PRDFUnit = Unit)
   }
 }
 ```
