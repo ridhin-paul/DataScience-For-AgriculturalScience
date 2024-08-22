@@ -1,0 +1,524 @@
+---
+title: "Weather data extraction"
+author: Ridhin Paul
+format: 
+  html:
+    embed-resources: true
+editor: visual
+---
+
+```{r}
+library(httr)
+library(jsonlite)
+library(ncdf4)
+library(zip)
+library(raster)
+library(tidyverse)
+```
+
+## **Note**
+
+It is not expected to run this code unless any changes in data or more data is required, data necessary for the analysis have been collected, formatted and written into csv file under the folder name Weather data. All downloaded data has been ignored because of size constraints; if any raw data is required the specific code can be run and data be downloaded locally.
+
+## Defining location
+
+```{r}
+coord <- tibble(location = c("Kabianga", "Kapsorok", "Thurgem"),
+                latitude = c(-0.448239, -0.290374, -0.271645),
+                longitude = c(35.131806, 35.051078, 35.038545))
+```
+
+## Some common functions
+
+```{r}
+#|eval :  true 
+
+extract_date_from_filename <- function(filename)
+  {
+  base_name <- tools::file_path_sans_ext(basename(filename))
+  date_part <- strsplit(base_name, "_")[[1]][4]  
+  date <- tryCatch({
+    ymd(date_part)
+  }, error = function(e) 
+    {
+    message(paste("Failed to extract date from", filename, ":", e$message))
+    return(NA)
+  })
+  date
+}
+
+generate_dates <- function(year, month) {
+  
+  first_date <- as.Date(paste(year, month, "01", sep = "-"))
+  
+  num_days <- as.numeric(format(seq.Date(first_date, length.out = 2, by = "month")[2] - 1, "%d"))
+  
+  # ADjust as required
+  dates <- seq.Date(from = first_date, by = "day", length.out = num_days)
+  
+  
+  formatted_dates <- format(dates, "%Y-%m-%d") #Specify as per req
+  
+  return(formatted_dates)
+}
+
+
+sort_file_based_on_dates <- function(mnth, yr, files)
+  {
+    dates <- generate_dates(yr, mnth)
+    
+    sorted_files <- c()
+    
+    for (file in files) 
+      {
+        file_date <- extract_date_from_filename(file)
+        if (!is.na(file_date) && file_date %in% ymd(dates)) 
+        {
+          sorted_files <- c(sorted_files, file)  
+        }
+    }
+    return(sorted_files)
+}
+
+#Function to extract data from files (will be made generic soon...)
+get_data <- function(files, loc, var)
+  {
+  pop_tib <- tibble() 
+  for (file in files)
+    {
+    nc_data <- tryCatch(
+      nc_open(file),
+      error = function(e) 
+        {
+        message(paste("Failed to open file", file, ":", e$message)) 
+        return(NULL)
+        }
+    ) 
+    if (is.null(nc_data)) 
+      {
+        next
+      } 
+    
+    lat_idx <- which.min(abs(ncvar_get(nc_data, "lat") - loc$latitude)) 
+    lon_idx <- which.min(abs(ncvar_get(nc_data, "lon") - loc$longitude))
+    
+    tryCatch({
+      data_value <- ncvar_get(nc_data, var)[lon_idx, lat_idx] #In data lon comes first
+      unit <- ncatt_get(nc_data, var, "units")$value
+      
+      temp <- tibble(
+        Latitude = loc$latitude,
+        Longitude = loc$longitude,
+        Date = extract_date_from_filename(file),
+        Value = data_value,
+        Unit = unit
+      ) 
+      pop_tib <- bind_rows(pop_tib, temp)
+    }, 
+    error = function(e) 
+      {
+        message(paste("Failed to open file", file, ":", e$message)) 
+        return(NULL)
+      })
+  } 
+  return(pop_tib)
+}
+```
+
+## Solar radiation flux
+
+### Making request
+
+Need to design and make a single wrapper with varying request body.
+
+```{r}
+#|eval: true
+
+# Setting up user credentials and url
+cds_api_url <- "https://cds.climate.copernicus.eu/api/v2"
+cds_user <- "331539"  
+cds_key <- "41770101-7297-4546-91f3-1425153bd48b"  
+
+# Defining the request body
+request_body <- list(
+  dataset = "sis-agrometeorological-indicators",
+  variable = "solar_radiation_flux",
+  year = c("2022", "2023"),
+  month = c("06", "07", "11", "12"),
+  day = c('01', '02', '03',
+          '04', '05', '06',
+          '07', '08', '09',
+          '10', '11', '12',
+          '13', '14', '15',
+          '16', '17', '18',
+          '19', '20', '21',
+          '22', '23', '24',
+          '25', '26', '27',
+          '28', '29', '30',
+          '31'),
+  version = "1_1",
+  format = "tgz"
+)
+
+# Making the api request
+response <- tryCatch({POST(
+  url = paste0(cds_api_url, "/resources/sis-agrometeorological-indicators"),
+  authenticate(cds_user, cds_key, type = "basic"),
+  body = toJSON(request_body),
+  encode = "json"
+)
+  },
+  error = function(e)
+    {
+        print(paste("Error:", conditionMessage(e)))
+    }
+)
+
+
+if (status_code(response) == 202) {
+  # Extract the location URL from the response headers 
+  location_url <- headers(response)$location
+  print("Request accepted.")
+  
+  # Hits the location url to obtain status_content to see if the state has changed. (fail safe initially used for debugging...)
+  repeat {
+    
+    status_response <- tryCatch({GET(location_url, authenticate(cds_user, cds_key, type = "basic"))
+      },
+      error = function(e)
+        {
+          print(paste("Error:", conditionMessage(e)))
+        }
+)
+    
+    status_content <- fromJSON(content(status_response, "text", encoding = "UTF-8"))
+    
+    # Check the current state of the request; and only breaks out if state is "completed" or any other states are obtained.
+    if (status_content$state == "completed") {
+      print(" Downloading")
+      # Download the data
+      result_url <- status_content$location
+      
+      download_response <- tryCatch({GET(result_url, authenticate(cds_user, cds_key, type = "basic"))
+      },
+       error = function(e)
+        {
+          print(paste("Error:", conditionMessage(e)))
+        }
+)
+      writeBin(content(download_response, "raw"), "data/solarRadiationFlux.tgz")  # Save the file as a ZIP
+      print("Data is written to folder data")
+      break
+    } else if (status_content$state == "running") {
+      print("State is still processing ")
+      Sys.sleep(10)  # Adding a delay of 10 seconds
+      
+    } else {
+      print(paste("state:", status_content$state))
+      break
+    }
+  }
+} else if (status_code(response) == 200) {
+  print("Downloading data")
+  writeBin(content(response, "raw"), "data/solarRadiationFlux.tgz")  # Save the file directly as ZIP
+  print("Data is written to folder data")
+} else {
+  print(paste("Error:", status_code(response)))
+  print(content(response, "text"))
+}
+
+```
+
+### Populating solar radiation flux data
+
+```{r}
+
+files <- list.files(path = "data/solarRadiationFlux/", pattern = "\\.nc$", full.names = TRUE)
+
+var <- "Solar_Radiation_Flux"
+
+files_nov_22 <- sort_file_based_on_dates(11, 2022, files)
+files_dec_23 <- sort_file_based_on_dates(12, 2023, files)
+files_june_22 <- sort_file_based_on_dates(6, 2022, files)
+files_jul_23 <- sort_file_based_on_dates(7, 2023, files)
+
+for (i in 1:nrow(coord))
+{
+    loc <- coord[i,]
+    
+    if (loc$location == "Kabianga")
+    {
+      wi_kab_nov_22_sr <- get_data(files_nov_22, loc, var) |>
+        rename(solar_radiation_flux = Value,SRFunit = Unit)
+      wi_kab_dec_23_sr <- get_data(files_dec_23, loc, var) |>
+        rename(solar_radiation_flux = Value,SRFunit = Unit)
+    }
+    
+    else if(loc$location == "Thurgem")
+    {
+      wi_thur_jun_22_sr <- get_data(files_june_22, loc, var) |>
+        rename(solar_radiation_flux = Value,SRFunit = Unit)
+      wi_thur_jul_23_sr <- get_data(files_jul_23, loc, var) |>
+        rename(solar_radiation_flux = Value,SRFunit = Unit)
+      wi_thur_dec_23_sr <- get_data(files_dec_23, loc, var) |>
+        rename(solar_radiation_flux = Value,SRFunit = Unit)
+    }
+    
+    else if(loc$location == "Kapsorok")
+    {
+      wi_kaps_jun_22_sr <- get_data(files_dec_23, loc, var) |>
+        rename(solar_radiation_flux = Value,SRFunit = Unit)
+    }
+}
+```
+
+## Precipitation
+
+### Liquid precipitation duration fraction and precipitation flux
+
+Just change the request body and change folder name required
+
+```{r}
+#|eval: true
+
+# Setting up user credentials and url
+cds_api_url <- "https://cds.climate.copernicus.eu/api/v2"
+cds_user <- "331539"  
+cds_key <- "41770101-7297-4546-91f3-1425153bd48b"  
+
+# Defining the request body
+request_body <- list(
+  dataset = "sis-agrometeorological-indicators",
+  variable = "precipitation_flux",
+  year = c("2022", "2023"),
+  month = c("06", "07", "11", "12"),
+  day = c('01', '02', '03',
+          '04', '05', '06',
+          '07', '08', '09',
+          '10', '11', '12',
+          '13', '14', '15',
+          '16', '17', '18',
+          '19', '20', '21',
+          '22', '23', '24',
+          '25', '26', '27',
+          '28', '29', '30',
+          '31'),
+  version = "1_1",
+  format = "tgz"
+)
+
+# Making the api request
+response <- tryCatch({POST(
+  url = paste0(cds_api_url, "/resources/sis-agrometeorological-indicators"),
+  authenticate(cds_user, cds_key, type = "basic"),
+  body = toJSON(request_body),
+  encode = "json"
+)
+  },
+  error = function(e)
+    {
+        print(paste("Error:", conditionMessage(e)))
+    }
+)
+
+
+if (status_code(response) == 202) {
+  # Extract the location URL from the response headers 
+  location_url <- headers(response)$location
+  print("Request accepted.")
+  
+  # Hits the location url to obtain status_content to see if the state has changed. (fail safe initially used for debugging...)
+  repeat {
+    
+    status_response <- tryCatch({GET(location_url, authenticate(cds_user, cds_key, type = "basic"))
+      },
+      error = function(e)
+        {
+          print(paste("Error:", conditionMessage(e)))
+        }
+)
+    
+    status_content <- fromJSON(content(status_response, "text", encoding = "UTF-8"))
+    
+    # Check the current state of the request; and only breaks out if state is "completed" or any other states are obtained.
+    if (status_content$state == "completed") {
+      print(" Downloading")
+      # Download the data
+      result_url <- status_content$location
+      
+      download_response <- tryCatch({GET(result_url, authenticate(cds_user, cds_key, type = "basic"))
+      },
+       error = function(e)
+        {
+          print(paste("Error:", conditionMessage(e)))
+        }
+)
+      writeBin(content(download_response, "raw"), "data/precipitation_flux.tgz")  # Save the file as a ZIP
+      print("Data is written to folder data")
+      break
+    } else if (status_content$state == "running") {
+      print("State is still processing ")
+      Sys.sleep(10)  # Adding a delay of 10 seconds
+      
+    } else {
+      print(paste("state:", status_content$state))
+      break
+    }
+  }
+} else if (status_code(response) == 200) {
+  print("Downloading data")
+  writeBin(content(response, "raw"), "data/precipitation_flux.tgz")  # Save the file directly as ZIP
+  print("Data is written to folder data")
+} else {
+  print(paste("Error:", status_code(response)))
+  print(content(response, "text"))
+}
+
+```
+
+## **Populating precipitation duration fraction and precipitation flux**
+
+### Precipitation flux
+
+```{r}
+
+
+files <- list.files(path = "data/precipitation_flux/",
+                    pattern = "\\.nc$",
+                    full.names = TRUE)
+
+var <- "Precipitation_Flux"
+
+files_nov_22 <- sort_file_based_on_dates(11, 2022, files)
+files_dec_23 <- sort_file_based_on_dates(12, 2023, files) 
+files_june_22 <- sort_file_based_on_dates(6, 2022, files)
+files_jul_23 <- sort_file_based_on_dates(7, 2023, files)
+
+for (i in 1:nrow(coord))
+{
+  loc <- coord[i, ] if (loc$location == "Kabianga") {
+    wi_kab_nov_22_pf <- get_data(files_nov_22, loc, var) |>
+      rename(Precipitation_Flux = Value, PFUnit = Unit)
+    wi_kab_dec_23_pf <- get_data(files_dec_23, loc, var) |>
+      rename(Precipitation_Flux = Value, PFUnit = Unit)
+  }
+  else if (loc$location == "Thurgem")
+  {
+    wi_thur_jun_22_pf <- get_data(files_june_22, loc, var) |>
+      rename(Precipitation_Flux = Value, PFUnit = Unit)
+    wi_thur_jul_23_pf <- get_data(files_jul_23, loc, var) |>
+      rename(Precipitation_Flux = Value, PFUnit = Unit)
+    wi_thur_dec_23_pf <- get_data(files_dec_23, loc, var) |>
+      rename(Precipitation_Flux = Value, PFUnit = Unit)
+  } 
+  else if (loc$location == "Kapsorok")
+    {
+      wi_kaps_jun_22_pf <- get_data(files_dec_23, loc, var) |>
+        rename(Precipitation_Flux = Value, PFUnit = Unit)
+    }
+}
+```
+
+### **Precipitation duration fraction**
+
+```{r}
+files <- list.files(path = "data/liquid_precipitation_duration_fraction//",
+                    pattern = "\\.nc$",
+                    full.names = TRUE)
+var <- "Precipitation_Rain_Duration_Fraction"
+files_nov_22 <- sort_file_based_on_dates(11, 2022, files)
+files_dec_23 <- sort_file_based_on_dates(12, 2023, files)
+files_june_22 <- sort_file_based_on_dates(6, 2022, files)
+files_jul_23 <- sort_file_based_on_dates(7, 2023, files)
+
+for (i in 1:nrow(coord))
+{
+  loc <- coord[i, ]
+  if (loc$location == "Kabianga")
+  {
+    wi_kab_nov_22_prdf <- get_data(files_nov_22, loc, var) |>
+      rename(Precipitation_Rain_Duration_Fraction = Value,
+             PRDFUnit = Unit)
+    wi_kab_dec_23_prdf <- get_data(files_dec_23, loc, var) |>
+      rename(Precipitation_Rain_Duration_Fraction = Value,
+             PRDFUnit = Unit)
+  }
+  else if (loc$location == "Thurgem")
+  {
+    wi_thur_jun_22_prdf <- get_data(files_june_22, loc, var) |>
+      rename(Precipitation_Rain_Duration_Fraction = Value,
+             PRDFUnit = Unit)
+    wi_thur_jul_23_prdf <- get_data(files_jul_23, loc, var) |>
+      rename(Precipitation_Rain_Duration_Fraction = Value,
+             PRDFUnit = Unit)
+    wi_thur_dec_23_prdf <- get_data(files_dec_23, loc, var) |>
+      rename(Precipitation_Rain_Duration_Fraction = Value,
+             PRDFUnit = Unit)
+  }
+  else if (loc$location == "Kapsorok")
+  {
+    wi_kaps_jun_22_prdf <- get_data(files_dec_23, loc, var) |>
+      rename(Precipitation_Rain_Duration_Fraction = Value,
+             PRDFUnit = Unit)
+  }
+}
+```
+
+## Combining data
+
+```{r}
+wi_kab_nov_22 <- wi_kab_nov_22_srf |> 
+  left_join(wi_kab_nov_22_pf, by = c("Latitude", "Longitude", "Date")) |> 
+  left_join(wi_kab_nov_22_prdf, by = c("Latitude", "Longitude", "Date")) 
+wi_kab_dec_23 <- wi_kab_dec_23_srf |> 
+  left_join(wi_kab_dec_23_pf, by = c("Latitude", "Longitude", "Date")) |> 
+  left_join(wi_kab_dec_23_prdf, by = c("Latitude", "Longitude", "Date")) 
+
+wi_thur_jun_22 <- wi_thur_jun_22_srf |> 
+  left_join(wi_thur_jun_22_pf, by = c("Latitude", "Longitude", "Date")) |> 
+  left_join(wi_thur_jun_22_prdf, by = c("Latitude", "Longitude", "Date"))
+wi_thur_jul_23 <- wi_thur_jul_23_srf |> 
+  left_join(wi_thur_jul_23_pf, by = c("Latitude", "Longitude", "Date")) |> 
+  left_join(wi_thur_jul_23_prdf, by = c("Latitude", "Longitude", "Date")) 
+wi_thur_dec_23 <- wi_thur_dec_23_srf |> 
+  left_join(wi_thur_dec_23_pf, by = c("Latitude", "Longitude", "Date")) |> 
+  left_join(wi_thur_dec_23_prdf, by = c("Latitude", "Longitude", "Date")) 
+
+
+wi_kaps_jun_22 <- wi_kaps_jun_22_srf |> 
+  left_join(wi_kaps_jun_22_pf, by = c("Latitude", "Longitude", "Date")) |> 
+  left_join(wi_kaps_jun_22_prdf, by = c("Latitude", "Longitude", "Date"))
+
+wi_kab_nov_22 <- wi_kab_nov_22 |> 
+  mutate(Precipitation = Precipitation_Flux * Precipitation_Rain_Duration_Fraction) 
+wi_kab_dec_23 <- wi_kab_dec_23 |> 
+  mutate(Precipitation = Precipitation_Flux * Precipitation_Rain_Duration_Fraction)
+
+wi_thur_jun_22 <- wi_thur_jun_22 |> 
+  mutate(Precipitation = Precipitation_Flux * Precipitation_Rain_Duration_Fraction) 
+
+wi_thur_jul_23 <- wi_thur_jul_23 |>
+  mutate(Precipitation = Precipitation_Flux * Precipitation_Rain_Duration_Fraction) 
+wi_thur_dec_23 <- wi_thur_dec_23 |> 
+  mutate(Precipitation = Precipitation_Flux * Precipitation_Rain_Duration_Fraction) 
+
+wi_kaps_jun_22 <- wi_kaps_jun_22 |> 
+  mutate(Precipitation = Precipitation_Flux * Precipitation_Rain_Duration_Fraction) 
+
+
+rm(wi_kab_nov_22_srf, wi_kab_dec_23_srf, wi_thur_jun_22_srf, wi_thur_jul_23_srf, wi_thur_dec_23_srf, wi_kaps_jun_22_srf, wi_kab_nov_22_pf, wi_kab_dec_23_pf, wi_thur_jun_22_pf, wi_thur_jul_23_pf, wi_thur_dec_23_pf, wi_kaps_jun_22_pf, wi_kab_nov_22_prdf, wi_kab_dec_23_prdf, wi_thur_jun_22_prdf, wi_thur_jul_23_prdf, wi_thur_dec_23_prdf, wi_kaps_jun_22_prdf, files, loc, files_nov_22, files_dec_23, files_june_22, files_jul_23,i, var)
+```
+
+## Writing files to csv
+
+```{r}
+
+write_csv(wi_kab_nov_22, "data/Weather data/wi_kab_nov_22.csv") 
+write_csv(wi_kab_dec_23, "data/Weather data/wi_kab_dec_23.csv") 
+write_csv(wi_thur_jun_22, "data/Weather data/wi_thur_jun_22.csv")
+write_csv(wi_thur_jul_23, "data/Weather data/wi_thur_jul_23.csv") 
+write_csv(wi_thur_dec_23, "data/Weather data/wi_thur_dec_23.csv") 
+write_csv(wi_kaps_jun_22, "data/Weather data/wi_kaps_jun_22.csv")
+```
+
+## 
