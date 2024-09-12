@@ -11,6 +11,30 @@ editor: visual
 
 This project evaluates the short-term effectiveness of restoration methods for degraded grasslands in Kenya. The treatments include **Tilage (T)**, the addition of native **soil inoculum (S)** and **Manure (M)**. "*A grazing exclosure was installed at the campus of the Kabianga University in Kenya in April 2022, when restoration treatments were laid out and baseline soil samples taken and analysed for key soil physical, chemical and biological properties. In November 2022, fresh soil samples were taken to track short- term changes in the soil. In addition, we assessed the plant community species composition, and measured in situ soil respiration rates.*" Refer "Grassland restoration experiment Kabianga Kenya.pdf" for more info.
 
+### **Abrevations used**
+
+| Variables and abbreviations | Explanation                                 |
+|-----------------------------|-------------------------------------------|
+| M                           | Manure                                      |
+| S                           | Soil inoculum                               |
+| T                           | Tillage                                     |
+| C                           | Control                                     |
+| YIELD                       | Yield in dry weight (kg/625 m\^2)           |
+| DM                          | Dry matter (%)                              |
+| Tsoil                       | Temperature of the topsoil (0C)             |
+| Tair                        | Temperature of the air (0C)                 |
+| MOIS                        | Moisture of the topsoil (%)                 |
+| pH                          | pH in water (dimensionless)                 |
+| EC                          | Electrical Conductivity (µs m-1)            |
+| MBC                         | Microbial Biomass Carbon (mg C kg soil-1)   |
+| MBN                         | Microbial Biomass Nitrogen (mg N kg soil-1) |
+| Nconc                       | Soil total Nitrogen (%)                     |
+| Cconc                       | Soil total Carbon (%)                       |
+| P                           | Olsen P (μg P g-1 soil)                     |
+| BD                          | Bulk density (g/cm3)                        |
+| NH4                         | Ammonium-Nitrogen (µg NH4-N g-1 DW)         |
+| NO3                         | Nitrate-Nitrogen (µg NO3-N g-1 DW)          |
+
 ## Loading required packages
 
 ```{r}
@@ -22,34 +46,66 @@ library(readxl)
 library(GGally)
 library(VIM)
 library(FactoMineR)
-library(lme4)
+library(stats)
+library(factoextra)
+library(ggrepel)
 ```
 
 ## Loading all datasets
 
-Some unwanted columns have also been removed.
+Some unwanted columns have also been removed and -1 is replaced as 0 for easy interpretability.
 
 ```{r}
 #| eval: true
 #| warning: false
 
 #Kabianga
-kab.nov.22 <- read_excel("data/DSAS_REDEAL_Assign_Data_Aug2.xlsx" , sheet = 'Kab_nov_2022', na = c("NA", NA)) |>
-  select(-c(...21,...22))
-kab.dec.23 <- read_excel("data/DSAS_REDEAL_Assign_Data_Aug2.xlsx" , sheet = 'Kab_dec_2023', na = c("NA", NA)) 
+kab.nov.22 <- read_excel("data/DSAS_REDEAL_Assign_Data_Aug2.xlsx", 
+                         sheet = 'Kab_nov_2022', 
+                         na = c("NA", NA)) |>
+  select(-c(...21,...22)) |>
+  mutate(M = if_else(M == -1, 0, 1),
+         S = if_else(S == -1, 0, 1),
+         T = if_else(T == -1, 0, 1))
+kab.dec.23 <- read_excel("data/DSAS_REDEAL_Assign_Data_Aug2.xlsx", 
+                         sheet = 'Kab_dec_2023', 
+                         na = c("NA", NA)) |>
+  mutate(M = if_else(M == -1, 0, 1),
+         S = if_else(S == -1, 0, 1),
+         T = if_else(T == -1, 0, 1)) 
 
 #Thurgem
-thur.jun.22 <- read_excel("data/DSAS_REDEAL_Assign_Data_Aug2.xlsx" , sheet = 'Thur_june_2022', na = c("NA", NA)) |>
-  select(-c(...13,...14))
+thur.jun.22 <- read_excel("data/DSAS_REDEAL_Assign_Data_Aug2.xlsx" , 
+                          sheet = 'Thur_june_2022', 
+                          na = c("NA", NA)) |>
+  select(-c(...13,...14)) |>
+  mutate(M = if_else(M == -1, 0, 1),
+         S = if_else(S == -1, 0, 1),
+         T = if_else(T == -1, 0, 1))
 
-thur.july.23 <- read_excel("data/DSAS_REDEAL_Assign_Data_Aug2.xlsx" , sheet = 'Thur_july_2023', na = c("NA", NA)) |>
-  select(-c(...15,...16))
+thur.july.23 <- read_excel("data/DSAS_REDEAL_Assign_Data_Aug2.xlsx", 
+                           sheet ='Thur_july_2023', 
+                           na = c("NA", NA)) |>
+  select(-c(...15,...16)) |>
+  mutate(M = if_else(M == -1, 0, 1),
+         S = if_else(S == -1, 0, 1),
+         T = if_else(T == -1, 0, 1))
 
-thur.dec.23 <- read_excel("data/DSAS_REDEAL_Assign_Data_Aug2.xlsx" , sheet = 'Thur_dec_2023', na = c("NA", NA))
+thur.dec.23 <- read_excel("data/DSAS_REDEAL_Assign_Data_Aug2.xlsx" ,
+                          sheet = 'Thur_dec_2023',
+                          na = c("NA", NA)) |>
+  mutate(M = if_else(M == -1, 0, 1),
+         S = if_else(S == -1, 0, 1),
+         T = if_else(T == -1, 0, 1))
 
 #Kapsarok
-kaps.jun.22 <- read_excel("data/DSAS_REDEAL_Assign_Data_Aug2.xlsx" , sheet = 'Kaps_june_2022', na = c("NA", NA)) |>
-  select(-c(...13,...14)) 
+kaps.jun.22 <- read_excel("data/DSAS_REDEAL_Assign_Data_Aug2.xlsx", 
+                          sheet = 'Kaps_june_2022', 
+                          na = c("NA", NA)) |>
+  select(-c(...13,...14))  |>
+  mutate(M = if_else(M == -1, 0, 1),
+         S = if_else(S == -1, 0, 1),
+         T = if_else(T == -1, 0, 1))
 ```
 
 ## Data exploration
@@ -69,7 +125,7 @@ aggr(kaps.jun.22, prop = F, numbers = T)
 
 ```
 
-For the dataset `kab.nov.23` the plot indicate the last row has all NA entries which is removed. And for the dataset `kaps.jun.22` there are 2 NA entries in the YIELD column, here the average based on the type of treatment for which the value is missing is taken and replaced. Since there are only 2 NA values, code is not written for the entire column.
+For the dataset `kab.nov.23` the plot indicate the last row has all NA entries which is removed. And for the dataset `kaps.jun.22` there are 2 NA entries in the YIELD column, here the average based on the type of treatment for which the value is missing is taken and NA was replaced. Since there are only 2 NA values, code is not written for the entire column.
 
 ```{r}
 #| eval: true
@@ -91,11 +147,12 @@ mean_yield_2 <- kaps.jun.22 |>
 kaps.jun.22 <- kaps.jun.22 |>
   mutate(YIELD = if_else(Code == "S" & is.na(YIELD), mean_yield_1, YIELD),
          YIELD = if_else(Code == "ST" & is.na(YIELD), mean_yield_2, YIELD)) 
+
 ```
 
 #### Checking data types
 
-For the variables `Plot No.`, `YIELD`, `DM`, `SPE`, `Tsoil`, `Tair`, `MOIS`, `RES`, `pH`, `EC`, `MBC`, `MBN`, `Nconc`, `Cconc`, `P`, `BD`, `NH4`, `NO3`, `Block` and for each treatment (later converted to factor type) `M`, `S` and `T` numeric values are expected as entry.
+For the variables `Plot No.`, `YIELD`, `DM`, `SPE`, `Tsoil`, `Tair`, `MOIS`, `RES`, `pH`, `EC`, `MBC`, `MBN`, `Nconc`, `Cconc`, `P`, `BD`, `NH4`, `NO3`, `Block` and for each treatment type `M`, `S` and `T` numeric values are expected as entry.
 
 ```{r}
 #| eval: true
@@ -110,223 +167,856 @@ glimpse(kaps.jun.22)
 
 ```
 
-All results where as expected.
+All results were as expected.
 
 #### **Check for multicolinearity**
 
-1.  Kabianga November 2023
+1.  Kabianga November 2022
 
-```{r}
-#| eval: true
-#| warning: false
-#| fig-width: 12
-#| fig-height: 10
+    ```{r}
+    #| eval: true
+    #| warning: false
+    #| fig-width: 12
+    #| fig-height: 10
 
-kab.nov.22 |>
-  select(-`Plot No.`, - Treatment, -M, -S, -T) |> 
-  ggpairs()
-```
+    kab.nov.22 |>
+      select(-`Plot No.`, - Treatment, -M, -S, -T) |> 
+      ggpairs()
+    ```
+
+    For the dataset a high correlation is observed between,
+
+    | Var 1  | Var 2   | r       |
+    |--------|---------|---------|
+    | *Tair* | *Tsoil* | *0.909* |
+    | Nconc  | Tair    | 0.615   |
+    | YIELD  | MOIS    | 0.571   |
+    | MBN    | NH4     | 0.651   |
+    | *EC*   | *NO3*   | *0.980* |
+    | Nconc  | NO3     | 0.603   |
+    | *MBN*  | *MBC*   | *0.891* |
+    | Cconc  | MBC     | 0.627   |
+    | Cconc  | Nconc   | 0.731   |
+
+<!-- -->
 
 2.  Kabianga December 2023
 
-```{r}
-#| eval: true
-#| warning: false
-#| fig-width: 12
-#| fig-height: 10
+    ```{r}
+    #| eval: true
+    #| warning: false
+    #| fig-width: 12
+    #| fig-height: 10
 
 
-kab.dec.23 |>
-  select(-`Plot No.`, - Treatment, -M, -S, -T) |> 
-  ggpairs()
-```
+    kab.dec.23 |>
+      select(-`Plot No.`, - Treatment, -M, -S, -T) |> 
+      ggpairs()
+    ```
+
+    No significant correlations were seen for the dataset.
+
+<!-- -->
 
 3.  Thurgem June 2022
 
-```{r}
-#| eval: true
-#| warning: false
-#| fig-width: 12
-#| fig-height: 10
+    ```{r}
+    #| eval: true
+    #| warning: false
+    #| fig-width: 12
+    #| fig-height: 10
 
-thur.jun.22 |>
-  select(-`Plot No.`, - Treatment, -M, -S, -T) |> 
-  ggpairs()
-```
+    thur.jun.22 |>
+      select(-`Plot No.`, - Treatment, -M, -S, -T) |> 
+      ggpairs()
+    ```
+
+    For the dataset a high correlation is observed between,
+
+    | Var 1  | Var 2   | r       |
+    |--------|---------|---------|
+    | *Tair* | *Tsoil* | *0.974* |
+
+<!-- -->
 
 4.  Thurgem July 2023
 
-```{r}
-#| eval: true
-#| warning: false
-#| fig-width: 12
-#| fig-height: 10
+    ```{r}
+    #| eval: true
+    #| warning: false
+    #| fig-width: 12
+    #| fig-height: 10
 
-thur.july.23 |>
-  select(-Plot_No, - Treatment, -M, -S, -T) |> 
-  ggpairs()
-```
+    thur.july.23 |>
+      select(-Plot_No, - Treatment, -M, -S, -T) |> 
+      ggpairs()
+    ```
+
+    For the dataset a high correlation is observed between,
+
+    | Var 1   | Var 2   | r       |
+    |---------|---------|---------|
+    | *Tair*  | *Tsoil* | *0.912* |
+    | *YIELD* | *DW*    | *1*     |
+
+<!-- -->
 
 5.  Thurgem Dec 2023
 
-```{r}
-#| eval: true
-#| warning: false
-#| fig-width: 12
-#| fig-height: 10
+    ```{r}
+    #| eval: true
+    #| warning: false
+    #| fig-width: 12
+    #| fig-height: 10
 
-thur.dec.23 |>
-  select(- `Plot No.`, - Treatment, -M, -S, -T) |> 
-  ggpairs()
-```
+    thur.dec.23 |>
+      select(- `Plot No.`, - Treatment, -M, -S, -T) |> 
+      ggpairs()
+    ```
+
+    No significant correlations were observed between variables.
+
+<!-- -->
 
 6.  Kapsorok June 2022
 
-```{r}
-#| eval: true
-#| warning: false
-#| fig-width: 12
-#| fig-height: 10
+    ```{r}
+    #| eval: true
+    #| warning: false
+    #| fig-width: 12
+    #| fig-height: 10
 
-kaps.jun.22 |>
-  select(-Plot_No., - Treatment, -M, -S, -T) |> 
-  ggpairs()
-```
+    kaps.jun.22 |>
+      select(-Plot_No., - Treatment, -M, -S, -T) |> 
+      ggpairs()
+    ```
+
+    For the dataset a high correlation is observed between,
+
+    | Var 1 | Var 2 | r     |
+    |-------|-------|-------|
+    | Tair  | Tsoil | 0.962 |
+
+**Correlation between Tair and Tsoil is consistent across all datasets.**
 
 #### **Histogram of YIELD by Treatment faceted by Block**
 
-1.  Kabianga November 2023
+1.  Kabianga November 2022
 
-```{r}
-#| eval: true
-#| warning: false
+    ```{r}
+    #| eval: true
+    #| warning: false
 
-ggplot(kab.nov.23, aes(x = Code, y = YIELD)) +
-  geom_bar(color = "black", alpha = 0.7, stat = "identity") +
-  labs(title = "Histogram of YIELD by Treaetment faceted by Block (Kabianga Nov 2023)", x = "Treatment", y = "Yield") +
-    facet_wrap(~Block) +
-  theme_minimal() 
+    ggplot(kab.nov.22, aes(x = Code, y = YIELD)) +
+      geom_bar(color = "black", alpha = 0.7, stat = "identity") +
+      labs(title = "Histogram of YIELD by Treaetment faceted by Block (Kabianga Nov 2022)", x
+           = "Treatment", y = "Yield") +
+        facet_wrap(~Block) +
+      theme_minimal() 
+    ```
 
-```
+<!-- -->
 
 2.  Kabianga December 2023
 
-```{r}
-#| eval: true
-#| warning: false
+    ```{r}
+    #| eval: true
+    #| warning: false
 
-ggplot(thur.jun.22, aes(x = Code, y = YIELD)) +
-  geom_bar(color = "black", alpha = 0.7, stat = "identity") +
-  labs(title = "Histogram of YIELD by Treaetment faceted by Block (Kabianga Dec 2023)", x = "Treatment", y = "Yield") +
-    facet_wrap(~Block) +
-  theme_minimal() 
-```
+    ggplot(kab.dec.23, aes(x = Code, y = YIELD)) +
+      geom_bar(color = "black", alpha = 0.7, stat = "identity") +
+      labs(title = "Histogram of YIELD by Treaetment faceted by Block (Kabianga Dec 2023)", x
+           = "Treatment", y = "Yield") +
+        facet_wrap(~Block) +
+      theme_minimal() 
+    ```
+
+<!-- -->
 
 3.  Thurgem June 2022
 
-```{r}
-#| eval: true
-#| warning: false
+    ```{r}
+    #| eval: true
+    #| warning: false
 
-ggplot(kab.dec.23, aes(x = Code, y = YIELD)) +
-  geom_bar(color = "black", alpha = 0.7, stat = "identity") +
-  labs(title = "Histogram of YIELD by Treaetment faceted by Block (Thurgem June 2022)", x = "Treatment", y = "Yield") +
-    facet_wrap(~Block) +
-  theme_minimal() 
-```
+    ggplot(thur.jun.22, aes(x = Code, y = YIELD)) +
+      geom_bar(color = "black", alpha = 0.7, stat = "identity") +
+      labs(title = "Histogram of YIELD by Treaetment faceted by Block (Thurgem June 2022)", x
+           = "Treatment", y = "Yield") +
+        facet_wrap(~Block) +
+      theme_minimal() 
+    ```
+
+<!-- -->
 
 4.  Thurgem July 2023
 
-```{r}
-#| eval: true
-#| warning: false
+    ```{r}
+    #| eval: true
+    #| warning: false
 
-ggplot(thur.july.23, aes(x = Code, y = YIELD)) +
-  geom_bar(color = "black", alpha = 0.7, stat = "identity") +
-  labs(title = "Histogram of YIELD by Treaetment faceted by Block (Thurgem July 2023)", x = "Treatment", y = "Yield") +
-    facet_wrap(~Block) +
-  theme_minimal() 
-```
+    ggplot(thur.july.23, aes(x = Code, y = YIELD)) +
+      geom_bar(color = "black", alpha = 0.7, stat = "identity") +
+      labs(title = "Histogram of YIELD by Treaetment faceted by Block (Thurgem July 2023)", x
+           = "Treatment", y = "Yield") +
+        facet_wrap(~Block) +
+      theme_minimal() 
+    ```
+
+<!-- -->
 
 5.  Thurgem Dec 2023
 
-```{r}
-#| eval: true
-#| warning: false
+    ```{r}
+    #| eval: true
+    #| warning: false
 
-ggplot(thur.dec.23, aes(x = Code, y = YIELD)) +
-  geom_bar(color = "black", alpha = 0.7, stat = "identity") +
-  labs(title = "Histogram of YIELD by Treaetment faceted by Block (Thurgem Dec 2023)", x = "Treatment", y = "Yield") +
-    facet_wrap(~Block) +
-  theme_minimal() 
-```
+    ggplot(thur.dec.23, aes(x = Code, y = YIELD)) +
+      geom_bar(color = "black", alpha = 0.7, stat = "identity") +
+      labs(title = "Histogram of YIELD by Treaetment faceted by Block (Thurgem Dec 2023)", x =
+             "Treatment", y = "Yield") +
+        facet_wrap(~Block) +
+      theme_minimal() 
+    ```
+
+<!-- -->
 
 6.  Kapsorok June 2022
 
+    ```{r}
+    #| eval: true
+    #| warning: false
+
+    ggplot(kaps.jun.22, aes(x = Code, y = YIELD)) +
+      geom_bar(color = "black", alpha = 0.7, stat = "identity") +
+      labs(title = "Bar chart of YIELD by Treaetment faceted by Block (Kapsorok June 2022)", x = "Treatment", y = "Yield") +
+        facet_wrap(~Block) +
+      theme_minimal() 
+    ```
+
+For all dataset the variation of YIELD across treatment across each block seem to vary slightly however it's statistical significance need to be checked for each dataset.
+
+#### Average yield across treatment
+
+1.  Kabianga November 2022
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+
+    kab.nov.22 |>
+      summarise(m_y_t = mean(YIELD), .by = Code) |>
+      ggplot(aes(x = Code, y = m_y_t)) +
+      geom_bar(color = "black", alpha = 0.7, stat = "identity") +
+      labs(title = "Bar chart of mean YIELD by Treaetment (Kabianga November 2022)", x = "Treatment", y = "Mean Yield") +
+      theme_minimal()
+    ```
+
+For the dataset, it can be observed that for treatments MST, MT, ST and T there is a reduction in YIELD compared to C (Control).
+
+2.  Kabianga December 2023
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+
+    kab.dec.23 |>
+      summarise(m_y_t = mean(YIELD), .by = Code) |>
+      ggplot(aes(x = Code, y = m_y_t)) +
+      geom_bar(color = "black", alpha = 0.7, stat = "identity") +
+      labs(title = "Bar chart of mean YIELD by Treaetment (Kabianga December 2023)", x = "Treatment", y = "Mean
+           Yield") +
+      theme_minimal()
+    ```
+
+For the dataset, it can be observed that for treatments MSTand M there is a reduction in YIELD compared to C (Control) and T the increase is fairly low.
+
+3.  Thurgem June 2022
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+
+    thur.jun.22 |>
+      summarise(m_y_t = mean(YIELD), .by = Code) |>
+      ggplot(aes(x = Code, y = m_y_t)) +
+      geom_bar(color = "black", alpha = 0.7, stat = "identity") +
+      labs(title = "Bar chart of mean YIELD by Treaetment (Thurgem June 2022)", x = "Treatment", y = "Mean Yield") +
+      theme_minimal()
+    ```
+
+For the dataset, it can be observed that for treatments M, MS, MST, S, MT, ST and T there is a reduction in YIELD compared to C (Control).
+
+4.  Thurgem July 2023
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+
+    thur.july.23 |>
+      summarise(m_y_t = mean(YIELD), .by = Code) |>
+      ggplot(aes(x = Code, y = m_y_t)) +
+      geom_bar(color = "black", alpha = 0.7, stat = "identity") +
+      labs(title = "Bar chart of mean YIELD by Treaetment (Thurgem July 2023)", x = "Treatment", y = "Mean Yield") +
+      theme_minimal()
+    ```
+
+For the dataset, it can be observed that for treatments M, MST, and ST there is a reduction in YIELD compared to C (Control) and **for T a significant increase can be seen**.
+
+5.  Thurgem Dec 2023
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+
+    thur.dec.23 |>
+      summarise(m_y_t = mean(YIELD), .by = Code) |>
+      ggplot(aes(x = Code, y = m_y_t)) +
+      geom_bar(color = "black", alpha = 0.7, stat = "identity") +
+      labs(title = "Bar chart of mean YIELD by Treaetment (Thurgem Dec 2023)", x = "Treatment", y = "Mean Yield") +
+      theme_minimal()
+    ```
+
+For the dataset, it can be observed that for every treatment there is an increase in YIELD compared to treatment.
+
+6.  Kapsorok June 2022
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+
+    kaps.jun.22 |>
+      summarise(m_y_t = mean(YIELD), .by = Code) |>
+      ggplot(aes(x = Code, y = m_y_t)) +
+      geom_bar(color = "black", alpha = 0.7, stat = "identity") +
+      labs(title = "Bar chart of mean YIELD by Treaetment (Kapsorok June 2022)", x = "Treatment", y = "Mean Yield") +
+      theme_minimal()
+    ```
+
+For the dataset, it can be observed that for treatments M, MST and S there is a reduction in YIELD compared to C (Control) and for the rest of the treatments there is a significant increase in YIELD.
+
+Visually tillage seem to have a negative effect on YIELD and manure combined with soil inoculum seems to have a slight positive effect on productivity but cannot be concluded.
+
+#### Average MBC and MBN across treatment
+
+1.  Kabianga November 2023
+
+    It seem that manure slightly increase both MBC and MBN which is expected because MBC and MBN had a high corelation. It is also observed that tillage has a slightly negative effect.
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+
+    kab.nov.22 |>
+      summarise(m_mbc_t = mean(MBC), .by = Code) |>
+      ggplot(aes(x = Code, y = m_mbc_t)) +
+      geom_bar(color = "black", alpha = 0.7, stat = "identity") +
+      labs(title = "Bar chart of mean MBC by Treaetment (Kabianga November 2022)", x = "Treatment", y = "Mean MBC") +
+      theme_minimal()
+
+
+    kab.nov.22 |>
+      summarise(m_mbn_t = mean(MBN), .by = Code) |>
+      ggplot(aes(x = Code, y = m_mbn_t)) +
+      geom_bar(color = "black", alpha = 0.7, stat = "identity") +
+      labs(title = "Bar chart of mean MBN by Treaetment (Kabianga November 2022)", x = "Treatment", y = "Mean MBN") +
+      theme_minimal()
+    ```
+
+## Primary analysis
+
+Common function for brute force algorithm based on AIC. **This was not implemented but only tested except for the dataset Kabianga November 2022 with dependent as YIELD because it yielded a sligtly better model.** Hybrid stepwise algorithm is used based on AIC keeping the interaction effects as fixed for rest of the models. And for all models p\<0.10 is considered significant.
+
+```{r}
+#| eval: false
+#| warning: false
+
+#Pass the base model as the formulae and scope as a vector of variable names under consideration
+
+bestModel <- function(base_model, scope, dataset)
+  {
+    all_combs <- list()
+    #seq_along creates n sequence of elements from the inputed vector
+    for (i in seq_along(scope)) 
+      {
+          #combn creates all possible n combinations, simplify is set to false to                 obtain the result as list
+          combs <- combn(scope, i, simplify = FALSE)
+          
+          all_combs <- c(all_combs, combs)
+      }
+    
+    combine <- function(all_combs) 
+      {
+        #deparse convert type formula to string
+        paste(deparse(base_model), paste(all_combs, collapse =
+                                   " + "), sep = " + ")
+      }
+    
+    #applies the function to list all_combs and returns a list which is converted to vector
+    formulas <- unlist(lapply(all_combs, combine))
+    
+    fitted_model <- list()
+    
+    for (formula in formulas)
+      {
+        model <- lm(as.formula(formula), data = dataset)
+        
+        #adjust below to consider other criteria apart from AIC and also ajust the following           logic accordingly after iteration
+        fitted_model[[formula]] <- list(models = model, AIC = AIC(model))
+  
+      }
+    
+    #takes in list, applies a function and returns vector
+    aic_values <- sapply(fitted_model, function(x) x$AIC)
+    
+
+    #returns the fitted model and corresponding AIC
+    return(fitted_model[[which.min(aic_values)]])
+  
+  }
+
+```
+
+1.  Kabianga November 2022
+
+    YIELD as the dependent variable.
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+
+    im <- lm(YIELD ~ T * S * M, data = kab.nov.22)
+
+    model_kab_Nov22_YIELD <- step(im, 
+                                  scope = list(
+                          lower = ~ T * S * M, 
+                          upper = ~ T * S * M + Tsoil + Tair + MOIS + NH4 + NO3 +
+                            P + pH + EC + MBC + MBN + Nconc + Cconc 
+                        ),
+                        direction = "both")  
+                                  
+    summary(model_kab_Nov22_YIELD)
+
+
+    #implementation of brute force algorithm
+    scope = c("Tsoil", "Tair", "MOIS", "NH4", "NO3", "P", "pH", "EC", "MBC", "MBN", "Nconc", "Cconc")
+
+    base_model = YIELD ~ T * S * M
+
+    #run only if necessar of running bcz it takes a quite a bit of time the model m below is the result of this function run.
+    # m <- bestModel(base_model, scope, kab.nov.22)
+
+    # summary(m$model)
+
+    #model m below is the result of this function run (best_Model)
+    m <- lm(YIELD ~ T * S * M + MOIS + NH4 + MBN + Nconc, data = kab.nov.22) 
+    summary(m)
+    ```
+
+    These results indicate that soil inoculum and the soil incolum combined with manure, moisture, MBN, and nitrogen concentration significantly influence yield, while other factors and interactions have less impact. Soil inoculum had a significant positive impact while soil incolum combined with manure had a negative impact.
+
+    **MBC as the dependent variable**
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+
+    im <- lm(MBC ~ T * S * M, data = kab.nov.22)
+
+    model_kab_Nov22_MBC <- step(im, 
+                                  scope = list(
+                          lower = ~ T * S * M, 
+                          upper = ~ T * S * M + Tsoil + Tair + MOIS + NH4 + NO3 +
+                            P + pH + EC  + MBN + Nconc + Cconc 
+                        ),
+                        direction = "both")  
+                                  
+    summary(model_kab_Nov22_MBC)
+    ```
+
+    **MBN as the dependent variable**
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+
+    im <- lm(MBN ~ T * S * M, data = kab.nov.22)
+
+    model_kab_Nov22_MBN <- step(im, 
+                                  scope = list(
+                          lower = ~ T * S * M, 
+                          upper = ~ T * S * M + Block + Tsoil + Tair + MOIS + NH4 + NO3 +
+                            P + pH + EC  + MBC + Nconc + Cconc 
+                        ),
+                        direction = "both")  
+                                  
+    summary(model_kab_Nov22_MBN)
+    ```
+
+    MBC and MBN did not show any significant effects on treatment, but both had a very high significant effect on Phosphorus . MBC had a negative effect, whereas MBN had a positive effect on P.
+
+2.  Kabianga December 2023
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+
+    im <- lm(YIELD ~ T * S * M, data = kab.dec.23)
+
+    model_kab_Dec23_YIELD <- step(im, 
+                                  scope = list(
+                          lower = ~ T * S * M, 
+                          upper = ~ T * S * M + P + BD 
+                        ),
+                        direction = "both")  
+                                  
+    summary(model_kab_Dec23_YIELD)
+    ```
+
+    Soil inoculum showed a positive effect, which was significant and soil inoculum combined with manure had a negative effect, even though not statistically significant. The effect of treatment seems comparable to the initial measurement, even though a reduction in YIELD is observed.
+
+3.  Thurgem June 2022
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+
+    im <- lm(YIELD ~ T * S * M, data = thur.jun.22)
+
+    model_Thur_Jun22 <- step(im,
+                            scope = list(
+                          lower = ~ T * S * M, 
+                          upper = ~ T * S * M + Tair + Tsoil + MOIS + EC 
+                        ),
+                        direction = "both")  
+                                  
+    summary(model_Thur_Jun22)
+    ```
+
+    Tillage, when combined with manure, showed a significant positive effect. Moisture seems to have a very high significance with a p-value of 0.00992 with a positive effect.
+
+4.  Thurgem July 2023
+
+    Variable DW was avoided because of perfect correlation with YIELD.
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+
+    im <- lm(YIELD ~ T * S * M, data = thur.july.23)
+
+    model_Thur_Jul23 <- step(im,
+                            scope = list(
+                          lower = ~ T * S * M, 
+                          upper = ~ T * S * M + Tair + Tsoil + MOIS + Nconc + Cconc +
+                            Block
+                        ),
+                        direction = "both")  
+                                  
+    summary(model_Thur_Jul23)
+    ```
+
+    The treatment tillage had a significant positive effect, whereas tillage combined with soil inoculum and manure had a significant negative effect. Manure also showed a significant positive effect, although its effect is not as pronounced as tillage, with an estimate of 6.331, whereas tillage had 9.336. Carbon concentration had a very significance with a p-value of 0.000254 positive effect.
+
+5.  Thurgem Dec 2023
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+
+    im <- lm(YIELD ~ T * S * M , data = thur.dec.23)
+
+    model_Thur_dec23 <- step(im,
+                            scope = list(
+                          lower = ~ T * S * M, 
+                          upper = ~ T * S * M + MOIS + P
+                        ),
+                        direction = "both")  
+                                  
+    summary(model_Thur_dec23)
+    ```
+
+    Measurement done after a month (July 2023) showed no significant effects for any of the treatments, and the model obtained was fairly poor, with an R-squared of 19.76%.
+
+6.  Kapsorok June 2022
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+
+    im <- lm(YIELD ~ T * S * M , data = kaps.jun.22)
+
+    model_Kaps_jun22 <- step(im,
+                            scope = list(
+                          lower = ~ T * S * M, 
+                          upper = ~ T * S * M + MOIS + Tsoil + Tair + EC + Block
+                        ),
+                        direction = "both")  
+                                  
+    summary(model_Kaps_jun22)
+    ```
+
+    Measurements showed a significant negative effect for tillage combined with soil inoculum and manure, tillage showed a positive effect, and soi inoculum combined with manure showed a positive effect. Moisture showed a positive effect with a p-value of 0.04220.
+
+    ### Testing the significance of Block on dependent variable
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+    summary(aov(YIELD ~ Block, data = kab.nov.22))
+    summary(aov(YIELD ~ Block, data = kab.dec.23))
+
+    summary(aov(YIELD ~ Block, data = thur.jun.22))
+    summary(aov(YIELD ~ Block, data = thur.july.23))
+    summary(aov(YIELD ~ Block, data = thur.dec.23))
+
+    summary(aov(YIELD ~ Block, data = kaps.jun.22))
+    ```
+
+    Except for Kapsorok Block did not have a significant effect on YIELD. The effect of Block for Kapsorok is significant with a p-value of 0.0412.
+
+    \
+    Creating table to summarize results for report.
+
+    ```{r}
+    #| eval: false
+    #| warning: false
+
+    stargazer(model_Kaps_jun22,
+              type = "text", 
+              title = "Comparison of Regression Models across datssets with YIELD as dependent
+              variable")
+    ```
+
+## Secondary analysis
+
+Considering the variable count the datasets on Kabianga November 2022 was only chosen for principal component analysis.
+
+### Kabianga November 2023
+
+#### Performing PCA and selecting principal components
+
 ```{r}
 #| eval: true
 #| warning: false
 
-ggplot(kaps.jun.22, aes(x = Code, y = YIELD)) +
-  geom_bar(color = "black", alpha = 0.7, stat = "identity") +
-  labs(title = "Bar chart of YIELD by Treaetment faceted by Block (Kapsorok June 2023)", x = "Treatment", y = "Yield", caption = "A sample chart based on the dataset Kapsorok June 2023") +
-    facet_wrap(~Block) +
-  theme_minimal() 
+pca_result.kab <- kab.nov.22 |>
+  select(-`Plot No.`, -M, -S, -T, - Treatment, -Code, -Block) |>
+  PCA(scale.unit = TRUE)
+
+fviz_eig(pca_result.kab, addlabels = TRUE, ylim = c(0, 50))
+
 ```
 
-## Primary analysis
+#### Corelation table and biplot
 
 ```{r}
-summary(aov(YIELD ~ Block + T * S * M , data = kab.nov.22))
-summary(aov(YIELD ~ Block + T * S * M , data = kab.dec.23))
-summary(aov(YIELD ~ Block + T * S * M , data = thur.jun.22))
-summary(aov(YIELD ~ Block + T * S * M , data = thur.july.23))
-summary(aov(YIELD ~ Block + T * S * M , data = thur.dec.23))
-summary(aov(YIELD ~ Block + T * S * M , data = kaps.jun.22))
+#| eval: true
+#| warning: false
 
-#MBC and MBN
-summary(aov(MBC ~ Block + T * S * M , data = kab.nov.22))
-summary(aov(MBN ~ Block + T * S * M , data = kab.nov.22))
+var_coord <- pca_result.kab$var$coord[, 1:2]
+
+selected_vars <- var_coord[c("Tsoil", "Tair", "MOIS", "YIELD", "NH4", "NO3", "P", "pH", "EC", "MBC", "MBN", "Nconc", "Cconc"), ]
+
+correlation_table <- data.frame(Variable = rownames(selected_vars), round(selected_vars, 2))
+
+corelation_tibble <- as_tibble(correlation_table) |>
+  rename(PC1 = Dim.1,
+         PC2 = Dim.2)
+
+
+print(corelation_tibble)
 ```
 
-```{At significance level 10%.}
-For kab.nov.22  T is significant.
-For kab.dec.23 T:S  is significant.
+#### K-means clustering based on principal components
 
-
-For MBC Block, T, M had significant effect.
-For MBN Block and M were. found significant.
-
-
-
-
-
-For thur.jun.22 no treatment or combinations had a significant effect.
-For thur.july.23 T:S is significant.
-For thur.dec.23 no treatment or combinations had a significant effect.
-
-For kaps.jun.22 Block, T, S, T:S, T:M and T:S:M had  significance.
-```
+Result may vary from report because `set.seed(1234567)` was added after report was written.
 
 ```{r}
-summary(lm(YIELD ~ T * S * M , data = kab.nov.22))
-summary(lm(YIELD ~ T * S * M , data = kab.dec.23))
-summary(lm(YIELD ~ T * S * M , data = thur.jun.22))
-summary(lm(YIELD ~ T * S * M , data = thur.july.23))
-summary(lm(YIELD ~ T * S * M , data = thur.dec.23))
-summary(lmer(YIELD ~ T * S * M + (1|Block), data = kaps.jun.22))
+#| eval: true
+#| warning: false
 
-#MBC and MBN
-summary(lmer(MBC ~ T * S * M + (1|Block), data = kab.nov.22))
-summary(lmer(MBN ~ T * S * M + (1|Block) , data = kab.nov.22))
+pc <- data.frame(pca_result.kab$ind$coord[, 1:2])
+fviz_nbclust(pc, FUNcluster = kmeans, method = "wss")
+
+set.seed(12334567)
+k_means <- kmeans(pc, centers = 4)
+
+fviz_pca_biplot(pca_result.kab,
+                habillage = as.factor(k_means$cluster),
+                addEllipses = TRUE
+               )
+
+fviz_pca_biplot(pca_result.kab,
+                habillage = as.factor(kab.nov.22$Code)
+               )
+
+p_cat <- tibble(
+  Code = kab.nov.22$Code,
+  Cluster = as.factor(k_means$cluster)
+)
+
+ggplot(p_cat, aes(x = Code, fill=Cluster)) +
+  geom_bar(stat = "count") +
+  theme_minimal()
 ```
+
+It seems as though manure treatment is associated with improved soil properties which are positively correlated with YIELD, except for EC and NO~3,~ which seem to be poorly correlated. Tilage seems to have a very little to no impact on YIELD.
+
+#### Just a plot to visualise variables and their correlation with PC1 and PC2
 
 ```{r}
-summary(lm(YIELD ~ T * S * M + Block, data = kaps.jun.22))
+#| eval: true
+#| warning: false
 
-#MBC and MBN
-summary(lm(MBC ~ T * S * M + Block, data = kab.nov.22))
-summary(lm(MBN ~ T * S * M + Block, data = kab.nov.22))
+correlation_data <- data.frame(
+  Variable = rownames(var_coord), 
+  PC1 = pca_result.kab$var$coord[, 1], 
+  PC2 = pca_result.kab$var$coord[, 2]
+)
+
+
+
+# Correlation plot
+ggplot(correlation_data, aes(x = PC1, y = PC2, label = Variable)) +
+  geom_point(size = 3, color = "blue") +  
+  geom_text(vjust = 1.5, color = "black") +  
+  theme_minimal() +
+  labs(title = "Correlations of Variables with Principal Components",
+       x = "PC1 (Principal Component 1)",
+       y = "PC2 (Principal Component 2)")
+
+
 ```
 
-## Secondary analysis
+### Assesing the effect of solar radiation flux and precipitation
+
+#### Creating tibbble for analysis
+
+```{r}
+#| eval: true
+#| warning: false
+
+wi_kab_nov_22 <- read_csv("data/Weather data/wi_kab_dec_23.csv")
+wi_kab_dec_23 <- read_csv("data/Weather data/wi_kab_nov_22.csv")
+
+
+wi_thur_jun_22 <- read_csv("data/Weather data/wi_thur_jun_22.csv")
+wi_thur_jul_23 <- read_csv("data/Weather data/wi_thur_jul_23.csv")
+wi_thur_dec_23 <- read_csv("data/Weather data/wi_thur_dec_23.csv")
+
+wi_kaps_jun_22 <- read_csv("data/Weather data/wi_kaps_jun_22.csv")
+
+
+a <- kab.nov.22 |>
+  select(YIELD, Block, Code, MOIS) |>
+  summarise(mean_yield = mean(YIELD), .by = c(Code)) |>
+  mutate(Mean_precip = mean(wi_kab_nov_22$Precipitation),
+         Mean_srf = mean(wi_kab_nov_22$solar_radiation_flux),
+         date = "nov_22")
+
+
+b <- kab.dec.23 |>
+  select(YIELD, Block, Code) |>
+  summarise(mean_yield = mean(YIELD), .by = c(Code)) |>
+  mutate(Mean_precip = mean(wi_kab_dec_23$Precipitation),
+         Mean_srf = mean(wi_kab_dec_23$solar_radiation_flux),
+         date = "dec_23")
+
+c <- thur.jun.22 |>
+  select(YIELD, Block, Code, MOIS) |>
+  summarise(mean_yield = mean(YIELD), .by = c(Code)) |>
+  mutate(Mean_precip = mean(wi_thur_jun_22$Precipitation),
+         Mean_srf = mean(wi_thur_jun_22$solar_radiation_flux),
+         date = "jun_22")
+
+
+d <- thur.july.23 |>
+  select(YIELD, Block, Code) |>
+  summarise(mean_yield = mean(YIELD), .by = c(Code)) |>
+  mutate(Mean_precip = mean(wi_thur_jul_23$Precipitation),
+         Mean_srf = mean(wi_thur_jul_23$solar_radiation_flux),
+         date = "jul_23")
+
+e <- thur.dec.23 |>
+  select(YIELD, Block, Code) |>
+  summarise(mean_yield = mean(YIELD), .by = c(Code)) |>
+  mutate(Mean_precip = mean(wi_thur_dec_23$Precipitation),
+         Mean_srf = mean(wi_thur_dec_23$solar_radiation_flux),
+         date = "dec_23")
+
+
+
+weather_info_kab <- bind_rows(a, b)
+
+weather_info_thur <- bind_rows(c, d ,e)
+
+weather_info_kaps <- kaps.jun.22 |>
+  select(YIELD, Block, Code) |>
+  summarise(mean_yield = mean(YIELD), .by = c(Code)) |>
+  mutate(Mean_precip = mean(wi_kaps_jun_22$Precipitation),
+         Mean_srf = mean(wi_kaps_jun_22$solar_radiation_flux),
+         date = "jun_22")
+
+rm(a,b,c,d,e)
+```
+
+1.  Kabianga
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+
+    ggplot(weather_info_kab, aes(x = Mean_precip, y = mean_yield, group = Code, color = Code)) + geom_line(aes(linetype = Code)) +
+      geom_point() +
+      geom_text_repel(aes(label = date)) +
+      facet_wrap(~Code) +
+      theme_minimal() +
+      labs(title = "Yield Trends Over Time by Treatment For Precipitation", x = "Mean precipitation", y = "Yield")
+
+
+    ggplot(weather_info_kab, aes(x = log(Mean_srf), y = mean_yield, group = Code, color = Code)) +
+      geom_line(aes(linetype = Code)) +
+      geom_point() +
+      geom_text_repel(aes(label = date)) +
+      facet_wrap(~Code) +
+      theme_minimal() +
+      labs(title = "Yield Trends Over Time by Treatment For Solar radiation Flux ", x = "Mean solar radiation flux (log scale)", y = "Yield")
+
+    summary(lm(mean_yield ~ Mean_precip:Code, data = weather_info_kab))
+    summary(lm(mean_yield ~ Mean_srf:Code, data = weather_info_kab))
+    ```
+
+2.  Thurgum
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+
+    ggplot(weather_info_thur, aes(x = Mean_precip, y = mean_yield, group = Code, color = Code)) + geom_line(aes(linetype = Code)) +
+      geom_point() +
+      geom_text_repel(aes(label = date)) +
+      facet_wrap(~Code) +
+      theme_minimal() +
+      labs(title = "Yield Trends Over Time by Treatment For Precipitation", x = "Mean
+           precipitation", y = "Yield")
+
+
+
+    ggplot(weather_info_thur, aes(x = log(Mean_srf), y = mean_yield, group = Code, color = Code)) +
+      geom_line(aes(linetype = Code)) +
+      geom_point() +
+      geom_text_repel(aes(label = date)) +
+      facet_wrap(~Code) +
+      theme_minimal() +
+      labs(title = "Yield Trends Over Time by Treatment For Solar radiation Flux ", x = "Mean
+           solar radiation flux (log scale)", y = "Yield")
+      
+
+    summary(lm(mean_yield ~ Mean_precip:Code, data = weather_info_thur))
+    summary(lm(mean_yield ~ Mean_srf:Code, data = weather_info_thur))
+    ```
+
+In Kabianga, productivity was lower during the months with high rainfall. However, when considering solar radiation flux, yield increased with higher levels of solar radiation. In contrast, at Thurgem, YIELD decreased as both rainfall and solar radiation flux increased.
+
+## Miscellaneous

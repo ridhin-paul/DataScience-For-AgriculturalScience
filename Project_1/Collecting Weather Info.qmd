@@ -376,7 +376,7 @@ if (status_code(response) == 202) {
 
 ```
 
-## **Populating precipitation duration fraction and precipitation flux**
+### **Populating precipitation duration fraction and precipitation flux**
 
 ### Precipitation flux
 
