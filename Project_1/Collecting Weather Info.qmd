@@ -18,7 +18,7 @@ library(tidyverse)
 
 ## **Note**
 
-It is not expected to run this code unless any changes in data or more data is required, data necessary for the analysis have been collected, formatted and written into csv file under the folder name Weather data. All downloaded data has been ignored because of size constraints; if any raw data is required the specific code along with required request body can be run and data be downloaded locally.
+It is not expected to run this code unless any changes in data or more data is required, data necessary for the analysis have been collected, formatted and written into csv file under the folder name Weather data. All downloaded data has been ignored (git) because of size constraints; if any raw data is required the specific code along with required request body can be run and data be downloaded locally.
 
 ## Defining location
 

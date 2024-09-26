@@ -49,6 +49,7 @@ library(FactoMineR)
 library(stats)
 library(factoextra)
 library(ggrepel)
+library(ggfortify)
 ```
 
 ## Loading all datasets
@@ -429,7 +430,7 @@ For the dataset, it can be observed that for treatments MST, MT, ST and T there 
       theme_minimal()
     ```
 
-For the dataset, it can be observed that for treatments MSTand M there is a reduction in YIELD compared to C (Control) and T the increase is fairly low.
+For the dataset, it can be observed that for treatments MST and M there is a reduction in YIELD compared to C (Control) and T the increase is fairly low.
 
 3.  Thurgem June 2022
 
@@ -525,7 +526,9 @@ Visually tillage seem to have a negative effect on YIELD and manure combined wit
 
 ## Primary analysis
 
-Common function for brute force algorithm based on AIC. **This was not implemented but only tested except for the dataset Kabianga November 2022 with dependent as YIELD because it yielded a sligtly better model.** Hybrid stepwise algorithm is used based on AIC keeping the interaction effects as fixed for rest of the models. And for all models p\<0.10 is considered significant.
+### Simple linear regression
+
+Common function for brute force algorithm based on AIC. **This was not implemented but only tested except for the dataset Kabianga November 2022 with dependent as YIELD because it yielded a sligtly better model.** Hybrid stepwise algorithm is used based on AIC keeping the interaction effects as fixed for rest of the models. And for all models p-value \< 0.10 is considered significant.
 
 ```{r}
 #| eval: false
@@ -599,13 +602,13 @@ bestModel <- function(base_model, scope, dataset)
 
 
     #implementation of brute force algorithm
-    scope = c("Tsoil", "Tair", "MOIS", "NH4", "NO3", "P", "pH", "EC", "MBC", "MBN", "Nconc", "Cconc")
-
-    base_model = YIELD ~ T * S * M
+    # scope = c("Tsoil", "Tair", "MOIS", "NH4", "NO3", "P", "pH", "EC", "MBC", "MBN", "Nconc", "Cconc")
+    # 
+    # base_model = YIELD ~ T * S * M
 
     #run only if necessar of running bcz it takes a quite a bit of time the model m below is the result of this function run.
-    # m <- bestModel(base_model, scope, kab.nov.22)
-
+    #  m <- bestModel(base_model, scope, kab.nov.22)
+    # 
     # summary(m$model)
 
     #model m below is the result of this function run (best_Model)
@@ -792,7 +795,7 @@ bestModel <- function(base_model, scope, dataset)
 
 Considering the variable count the datasets on Kabianga November 2022 was only chosen for principal component analysis.
 
-### Kabianga November 2023
+### Kabianga November 2022
 
 #### Performing PCA and selecting principal components
 
@@ -828,9 +831,11 @@ corelation_tibble <- as_tibble(correlation_table) |>
 print(corelation_tibble)
 ```
 
+Principal component 1, which explains 40.9% variance, has a very low correlation for YIELD with 0.20 and principal component 2 with 0.74. A similar situation is observed with moisture.
+
 #### K-means clustering based on principal components
 
-Result may vary from report because `set.seed(1234567)` was added after report was written.
+Result may vary from report because `set.seed(1234567)` was added after report was written however it's comparable.
 
 ```{r}
 #| eval: true
@@ -861,7 +866,7 @@ ggplot(p_cat, aes(x = Code, fill=Cluster)) +
   theme_minimal()
 ```
 
-It seems as though manure treatment is associated with improved soil properties which are positively correlated with YIELD, except for EC and NO~3,~ which seem to be poorly correlated. Tilage seems to have a very little to no impact on YIELD.
+It seems as though manure treatment is associated with improved soil properties which are positively correlated with YIELD, except for EC and NO~3,~ which seem to be poorly correlated. Tilage seems to have a very little impact on YIELD and moisture.
 
 #### Just a plot to visualise variables and their correlation with PC1 and PC2
 
@@ -1020,3 +1025,143 @@ rm(a,b,c,d,e)
 In Kabianga, productivity was lower during the months with high rainfall. However, when considering solar radiation flux, yield increased with higher levels of solar radiation. In contrast, at Thurgem, YIELD decreased as both rainfall and solar radiation flux increased.
 
 ## Miscellaneous
+
+### Performance evaluation of linear regression models
+
+**Evaluation of residuals**
+
+1.  Kabianga November 2022
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+
+    autoplot(m)
+    ```
+
+    The model seem to be somewhat have a linear relationship (Residual vs Fitted).
+
+    The model seem to have a constant variability in residuals even though some variations are observed it is acceptable (Scale-Location).
+
+    Model slightly deviate from normality assumption of residuals but acceptable. (Normal Q-Q).
+
+    The presence of outliers seems limited for the model (Rsiduals vs Leverage).
+
+    **MBC as the dependent variable**
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+                                  
+    autoplot(model_kab_Nov22_MBC)
+    ```
+
+    The model seem to be somewhat have a linear relationship but not that good (Residual vs Fitted).
+
+    The model seem to have a slight variability in residuals (Scale-Location).
+
+    Model seems to obey normality assumption of residuals. (Normal Q-Q).
+
+    The presence of outliers seems to be limited but present for the model (Residuals vs Leverage).
+
+2.  **MBN as the dependent variable**
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+                                  
+    autoplot(model_kab_Nov22_MBN)
+    ```
+
+    The model seem to be somewhat have a linear relationship (Residual vs Fitted).
+
+    The model seem to have a slight variability in residuals (Scale-Location).
+
+    Model seems to obey normality assumption of residuals. (Normal Q-Q).
+
+    The presence of outliers seems to be limited but present for the model (Residuals vs Leverage).
+
+3.  Kabianga December 2023
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+                                  
+    autoplot(model_kab_Dec23_YIELD)
+    ```
+
+    The model seem to have a linear relationship (Residual vs Fitted).
+
+    The model seem to have a slight variability in residuals (Scale-Location).
+
+    Model seems to obey normality assumption of residuals. (Normal Q-Q).
+
+    The presence of outliers seems to be prominent for the model (Residuals vs Leverage).
+
+4.  Thurgem June 2022
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+                                  
+    autoplot(model_Thur_Jun22)
+    ```
+
+    The model seem to have a linear relationship but not that good(Residual vs Fitted).
+
+    The model seem to have quite a bit of variability in residuals (Scale-Location).
+
+    Model seems to slightly deviate from normality assumption of residuals. (Normal Q-Q).
+
+    The presence of outliers seems to be limited for the model (Residuals vs Leverage).
+
+5.  Thurgem July 2023
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+                                  
+    autoplot(model_Thur_Jul23)
+    ```
+
+    The model seem to have a poor linear relationship (Residual vs Fitted).
+
+    The model seem to have quite a bit of variability in residuals (Scale-Location).
+
+    Model seems to slightly deviate from normality assumption of residuals. (Normal Q-Q).
+
+    The presence of outliers seems to be limited for the model (Residuals vs Leverage).
+
+6.  Thurgem Dec 2023
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+
+    autoplot(model_Thur_dec23)
+    ```
+
+    The model seem to have a linear relationship (Residual vs Fitted).
+
+    The model seem to have a slight variability in residuals (Scale-Location).
+
+    Model seems to obey normality assumption of residuals. (Normal Q-Q).
+
+    The presence of outliers seems to be prominent for the model (Residuals vs Leverage).
+
+7.  Kapsorok June 2022
+
+    ```{r}
+    #| eval: true
+    #| warning: false
+                                  
+    autoplot(model_Kaps_jun22)
+    ```
+
+    The model seem to have a linear relationship (Residual vs Fitted).
+
+    The model seem to have a slight variability in residuals (Scale-Location).
+
+    Model seems to deviate slightly from normality assumption of residuals. (Normal Q-Q).
+
+    The presence of outliers seems to be limited for the model (Residuals vs Leverage).
